@@ -3,10 +3,10 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 
-st.set_page_config(page_title="Cotação Inteligente V2.3", layout="wide")
+st.set_page_config(page_title="Cotação Inteligente V2.5", layout="wide")
 
 st.title("Cotação Inteligente")
-st.caption("V2.3 • Base do pedido eletrônico + associação manual da cotação + preenchimento numérico no Excel.")
+st.caption("V2.5 • Base do pedido eletrônico + associação manual + preenchimento numérico + preservação melhor do layout original.")
 
 # =========================================================
 # FUNÇÕES AUXILIARES
@@ -214,7 +214,7 @@ def escrever_precos_em_xlsx_original(uploaded_file, aba_nome, header_row_zero_ba
             cell.value = None
         else:
             cell.value = float(preco)
-            cell.number_format = '#,##0.00'
+            cell.number_format = "0.00"
 
     output = io.BytesIO()
     wb.save(output)
@@ -235,7 +235,7 @@ estoque_minimo = st.sidebar.number_input(
 
 st.sidebar.markdown("---")
 st.sidebar.write("Fluxo:")
-st.sidebar.write("1. Subir base do pedido eletrônico")
+st.sidebar.write("1. Subir base")
 st.sidebar.write("2. Subir cotação")
 st.sidebar.write("3. Ajustar cabeçalhos")
 st.sidebar.write("4. Associar colunas manualmente")
@@ -481,6 +481,7 @@ if base_df is not None and cotacao_df is not None:
             c3.metric("Não encontrados", nao_encontrados)
 
             preview = cot_proc.copy()
+            preview[col_cot_preco] = preview[col_cot_preco].astype("object")
             preview[col_cot_preco] = precos_preview
 
             st.markdown("### 6. Prévia final")
@@ -518,10 +519,11 @@ if base_df is not None and cotacao_df is not None:
                 )
             else:
                 resultado_bruto = cotacao_bruto.copy()
+                resultado_bruto[preco_col_idx] = resultado_bruto[preco_col_idx].astype("object")
 
                 for i, preco in enumerate(precos_numericos):
                     linha_real = header_row + 1 + i
-                    resultado_bruto.iat[linha_real, preco_col_idx] = preco if pd.notna(preco) else None
+                    resultado_bruto.iat[linha_real, preco_col_idx] = float(preco) if pd.notna(preco) else None
 
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine="openpyxl") as writer:
