@@ -3,10 +3,26 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 
-st.set_page_config(page_title="Cotação Inteligente V2.5", layout="wide")
+# =========================================================
+# CONFIGURAÇÃO DA PÁGINA
+# =========================================================
+st.set_page_config(page_title="CotaBot", layout="wide")
 
-st.title("Cotação Inteligente")
-st.caption("V2.5 • Base do pedido eletrônico + associação manual + preenchimento numérico + preservação melhor do layout original.")
+# TOPO COM LOGO + NOME
+topo1, topo2 = st.columns([1, 5])
+
+with topo1:
+    try:
+        st.image("logo.png", width=90)
+    except Exception:
+        pass
+
+with topo2:
+    st.markdown("<h1 style='margin-bottom:0;'>CotaBot</h1>", unsafe_allow_html=True)
+    st.markdown(
+        "<p style='color:gray; margin-top:0;'>Sua cotação pronta em segundos</p>",
+        unsafe_allow_html=True
+    )
 
 # =========================================================
 # FUNÇÕES AUXILIARES
@@ -19,11 +35,12 @@ def normalizar_texto(texto):
         "é": "e", "ê": "e",
         "í": "i",
         "ó": "o", "ô": "o", "õ": "o",
-        "ú": "u"
+        "ú": "u",
     }
     for k, v in trocas.items():
         texto = texto.replace(k, v)
     return texto
+
 
 def limpar_ean(serie):
     return (
@@ -33,6 +50,7 @@ def limpar_ean(serie):
         .str.replace(" ", "", regex=False)
         .str.replace("-", "", regex=False)
     )
+
 
 def converter_valor_monetario(serie):
     if pd.api.types.is_numeric_dtype(serie):
@@ -52,6 +70,7 @@ def converter_valor_monetario(serie):
 
     return pd.to_numeric(s, errors="coerce")
 
+
 def formatar_preco_brl(valor):
     if pd.isna(valor) or valor == "":
         return ""
@@ -59,6 +78,7 @@ def formatar_preco_brl(valor):
         return f"{float(valor):.2f}".replace(".", ",")
     except Exception:
         return ""
+
 
 def carregar_excel_normal(uploaded_file, sheet_name=0):
     nome = uploaded_file.name.lower()
@@ -72,6 +92,7 @@ def carregar_excel_normal(uploaded_file, sheet_name=0):
 
     return pd.read_excel(uploaded_file, sheet_name=sheet_name)
 
+
 def carregar_excel_bruto(uploaded_file, sheet_name=0):
     nome = uploaded_file.name.lower()
     uploaded_file.seek(0)
@@ -83,6 +104,7 @@ def carregar_excel_bruto(uploaded_file, sheet_name=0):
         return pd.read_excel(uploaded_file, engine="xlrd", sheet_name=sheet_name, header=None)
 
     return pd.read_excel(uploaded_file, sheet_name=sheet_name, header=None)
+
 
 def detectar_linha_cabecalho_cotacao(df_bruto):
     palavras = [
@@ -112,10 +134,11 @@ def detectar_linha_cabecalho_cotacao(df_bruto):
 
     return melhor_linha
 
+
 def detectar_linha_cabecalho_base(df_bruto):
     palavras = [
-        "codigo ean", "código ean", "descricao", "descrição", "laboratorio",
-        "laboratório", "st", "preco nf", "preço nf", "estoque"
+        "codigo ean", "código ean", "descricao", "descrição",
+        "laboratorio", "laboratório", "st", "preco nf", "preço nf", "estoque"
     ]
 
     limite = min(len(df_bruto), 15)
@@ -138,14 +161,17 @@ def detectar_linha_cabecalho_base(df_bruto):
 
     return melhor_linha
 
+
 def construir_dataframe_com_cabecalho(df_bruto, header_row):
     cab = df_bruto.iloc[header_row].fillna("").astype(str).tolist()
     dados = df_bruto.iloc[header_row + 1:].copy().reset_index(drop=True)
     dados.columns = cab
     return dados
 
+
 def encontrar_coluna_por_nomes(colunas, nomes_alvo):
     mapa = {normalizar_texto(c): c for c in colunas}
+
     for alvo in nomes_alvo:
         alvo_norm = normalizar_texto(alvo)
 
@@ -156,7 +182,9 @@ def encontrar_coluna_por_nomes(colunas, nomes_alvo):
         for col_norm, col_original in mapa.items():
             if alvo_norm in col_norm:
                 return col_original
+
     return None
+
 
 def sugerir_coluna_ean(df):
     return encontrar_coluna_por_nomes(df.columns, [
@@ -164,21 +192,25 @@ def sugerir_coluna_ean(df):
         "codigo de barras", "gtin"
     ])
 
+
 def sugerir_coluna_preco_real(df):
     return encontrar_coluna_por_nomes(df.columns, [
         "preço real", "preco real", "preço final", "preco final",
         "valor final", "preço venda", "preco venda"
     ])
 
+
 def sugerir_coluna_st(df):
     return encontrar_coluna_por_nomes(df.columns, [
         "st", "valor st", "substituicao tributaria", "substituição tributária"
     ])
 
+
 def sugerir_coluna_preco_nf(df):
     return encontrar_coluna_por_nomes(df.columns, [
         "preço nf", "preco nf", "valor nf", "preço nota", "preco nota", "nf"
     ])
+
 
 def sugerir_coluna_estoque(df):
     return encontrar_coluna_por_nomes(df.columns, [
@@ -186,12 +218,13 @@ def sugerir_coluna_estoque(df):
         "disponivel", "disponível"
     ])
 
+
 def sugerir_coluna_preco_cotacao(df):
     return encontrar_coluna_por_nomes(df.columns, [
         "preço un", "preco un", "preço", "preco", "valor",
-        "preço unitário", "preco unitario", "preço c/ desc",
-        "preco c/ desc"
+        "preço unitário", "preco unitario", "preço c/ desc", "preco c/ desc"
     ])
+
 
 def listar_abas_xlsx(uploaded_file):
     uploaded_file.seek(0)
@@ -200,7 +233,14 @@ def listar_abas_xlsx(uploaded_file):
     wb.close()
     return nomes
 
-def escrever_precos_em_xlsx_original(uploaded_file, aba_nome, header_row_zero_based, preco_col_idx_zero_based, precos_numericos):
+
+def escrever_precos_em_xlsx_original(
+    uploaded_file,
+    aba_nome,
+    header_row_zero_based,
+    preco_col_idx_zero_based,
+    precos_numericos
+):
     uploaded_file.seek(0)
     wb = load_workbook(uploaded_file)
     ws = wb[aba_nome]
@@ -220,6 +260,7 @@ def escrever_precos_em_xlsx_original(uploaded_file, aba_nome, header_row_zero_ba
     wb.save(output)
     output.seek(0)
     return output.getvalue()
+
 
 # =========================================================
 # SIDEBAR
@@ -387,7 +428,6 @@ if base_df is not None and cotacao_df is not None:
         else:
             idx_st = opcoes_base.index(col_base_st_sug) if col_base_st_sug in opcoes_base else 0
             idx_nf = opcoes_base.index(col_base_preco_nf_sug) if col_base_preco_nf_sug in opcoes_base else 0
-
             col_base_st = st.selectbox("Coluna ST", opcoes_base, index=idx_st)
             col_base_preco_nf = st.selectbox("Coluna PREÇO NF", opcoes_base, index=idx_nf)
             col_base_preco_real = None
@@ -449,14 +489,19 @@ if base_df is not None and cotacao_df is not None:
             base_proc[col_base_ean] = limpar_ean(base_proc[col_base_ean])
             cot_proc[col_cot_ean] = limpar_ean(cot_proc[col_cot_ean])
 
-            base_proc[col_base_estoque] = pd.to_numeric(base_proc[col_base_estoque], errors="coerce").fillna(0)
+            base_proc[col_base_estoque] = pd.to_numeric(
+                base_proc[col_base_estoque],
+                errors="coerce"
+            ).fillna(0)
 
             if modo_preco == "Usar PREÇO REAL":
                 base_proc["_PRECO_FINAL_"] = converter_valor_monetario(base_proc[col_base_preco_real])
             else:
                 base_proc["_ST_"] = converter_valor_monetario(base_proc[col_base_st])
                 base_proc["_PRECO_NF_"] = converter_valor_monetario(base_proc[col_base_preco_nf])
-                base_proc["_PRECO_FINAL_"] = base_proc["_ST_"].fillna(0) + base_proc["_PRECO_NF_"].fillna(0)
+                base_proc["_PRECO_FINAL_"] = (
+                    base_proc["_ST_"].fillna(0) + base_proc["_PRECO_NF_"].fillna(0)
+                )
 
             base_filtrada = base_proc[base_proc[col_base_estoque] >= estoque_minimo].copy()
             base_merge = base_filtrada[[col_base_ean, "_PRECO_FINAL_"]].drop_duplicates(subset=[col_base_ean])
