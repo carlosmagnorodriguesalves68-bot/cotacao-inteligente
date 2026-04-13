@@ -13,7 +13,7 @@ topo1, topo2 = st.columns([1, 5])
 
 with topo1:
     try:
-        st.image("logo.png", width=180)
+        st.image("logo.png", width=220)
     except Exception:
         pass
 
